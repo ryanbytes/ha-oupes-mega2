@@ -1,0 +1,12 @@
+{
+  "domain": "oupes_mega2",
+  "name": "OUPES Mega 2",
+  "version": "1.0.0",
+  "documentation": "https://github.com/ryanbytes/ha-oupes-mega2",
+  "issue_tracker": "https://github.com/ryanbytes/ha-oupes-mega2/issues",
+  "dependencies": [],
+  "codeowners": [],
+  "requirements": [],
+  "iot_class": "local_polling",
+  "config_flow": true
+}

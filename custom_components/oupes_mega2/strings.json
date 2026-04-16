@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OUPES Mega 2 Setup",
+        "description": "Enter your device details. Close the OUPES mobile app before proceeding.",
+        "data": {
+          "host": "Device IP Address",
+          "port": "Port",
+          "device_id": "Device ID",
+          "device_key": "Device Key"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to device. Check IP/port and ensure the OUPES app is closed."
+    },
+    "abort": {
+      "already_configured": "Device is already configured."
+    }
+  }
+}
