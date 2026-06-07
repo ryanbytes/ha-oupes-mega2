@@ -145,7 +145,9 @@ def _derive(raw: dict) -> dict:
     ac_out_w = round((raw.get(4) or 0), 1)
     battery_pct = raw.get(3)
     battery_v = round((raw.get(32) or 0) * 0.1, 1)
-    temp_c = round((raw.get(5) or 0) * 0.1, 1)
+    # The Cleanergy app maps attr 32 to tempFV, stored as tenths of a degree F.
+    temp_f_raw = raw.get(32)
+    temp_c = None if temp_f_raw is None else round(((temp_f_raw * 0.1) - 32) / 1.8, 1)
     time_raw = raw.get(30)
     time_remaining = None if (time_raw is None or time_raw >= AC_SENTINEL) else time_raw
     ac_output_on = bool(raw.get(105))
