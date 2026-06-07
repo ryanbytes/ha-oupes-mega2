@@ -14,7 +14,6 @@ _LOGGER = logging.getLogger(__name__)
 
 POLL_INTERVAL = timedelta(seconds=3)
 THRESHOLD = 3        # watts — below this is noise
-AC_SENTINEL = 5940   # time_remaining sentinel meaning "on AC"
 MAX_CONSECUTIVE_FAILURES = 4  # return stale data for up to this many failures
 
 ATTR_GROUPS = [
@@ -141,17 +140,16 @@ def _derive(raw: dict) -> dict:
     """Build the final sensor dict from raw attr data."""
     solar_w = round((raw.get(23) or 0), 1)
     total_in_w = round((raw.get(21) or 0), 1)
-    ac_in_w = round(max(0, total_in_w - solar_w), 1)
-    ac_out_w = round((raw.get(4) or 0), 1)
+    ac_in_w = round((raw.get(22) or 0), 1)
+    ac_out_w = round((raw.get(5) or 0), 1)
     battery_pct = raw.get(3)
-    battery_v = round((raw.get(32) or 0) * 0.1, 1)
     # The Cleanergy app maps attr 32 to tempFV, stored as tenths of a degree F.
     temp_f_raw = raw.get(32)
     temp_c = None if temp_f_raw is None else round(((temp_f_raw * 0.1) - 32) / 1.8, 1)
-    time_raw = raw.get(30)
-    time_remaining = None if (time_raw is None or time_raw >= AC_SENTINEL) else time_raw
-    ac_output_on = bool(raw.get(105))
-    dc_output_on = bool(raw.get(51))
+    time_remaining = raw.get(30)
+    switch_value = int(raw.get(1) or 0)
+    ac_output_on = bool(switch_value & 0b0001)
+    dc_output_on = bool(switch_value & 0b0110)
 
     # Charge mode from actual power values (device attr 1 is unreliable)
     if solar_w > THRESHOLD and ac_in_w > THRESHOLD:
@@ -173,7 +171,6 @@ def _derive(raw: dict) -> dict:
         "total_input_power_w": total_in_w,
         "ac_output_power_w": ac_out_w,
         "battery_pct": battery_pct,
-        "battery_voltage": battery_v,
         "temperature_c": temp_c,
         "time_remaining_min": time_remaining,
         "charge_mode": charge_mode,
