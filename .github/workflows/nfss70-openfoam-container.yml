@@ -21,7 +21,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          . /openfoam/bashrc
+          . /opt/openfoam14/etc/bashrc
           echo "OpenFOAM=$WM_PROJECT_VERSION"
           foamRun -help >/dev/null
           test -d "$FOAM_TUTORIALS/incompressibleVoF/cavitatingBullet"
