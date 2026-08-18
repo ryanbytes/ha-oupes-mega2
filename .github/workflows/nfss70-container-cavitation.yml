@@ -1,0 +1,59 @@
+name: NFSS-70 Container Cavitation Solve
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/nfss70-container-cavitation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cavitation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container:
+      image: microfluidica/openfoam:14
+    steps:
+      - name: Run 70-knot sigma-0.15 validation solve
+        shell: bash
+        run: |
+          set -eo pipefail
+          . /opt/openfoam14/etc/bashrc
+          CASE="$GITHUB_WORKSPACE/case"
+          cp -a "$FOAM_TUTORIALS/incompressibleVoF/cavitatingBullet" "$CASE"
+          cd "$CASE"
+          cp 0/U.orig 0/U
+          cp 0/p_rgh.orig 0/p_rgh
+
+          # 70 kn study point, sigma=0.15:
+          # V=36.011 m/s, rho=1025 kg/m3, nu=1.05e-6 m2/s,
+          # pSat=2300 Pa, q=664605.962 Pa, pInf=101990.894 Pa.
+          sed -Ei 's/internalField[[:space:]]+uniform[[:space:]]+\(0[[:space:]]+0[[:space:]]+20\);/internalField   uniform (0 0 36.011000);/' 0/U
+          sed -Ei 's/internalField[[:space:]]+uniform[[:space:]]+100000;/internalField   uniform 101990.894302;/' 0/p_rgh
+          sed -Ei 's/^[[:space:]]*nu[[:space:]]+9e-07;/nu              1.05e-06;/' constant/physicalProperties.water
+          sed -Ei 's/^[[:space:]]*rho[[:space:]]+1000;/rho             1025;/' constant/physicalProperties.water
+          sed -Ei 's/^[[:space:]]*endTime[[:space:]]+0\.05;/endTime                 0.001;/' system/controlDict
+
+          cat > NFSS70_CASE.txt <<'EOF'
+          sigma=0.15
+          V_mps=36.011
+          rho=1025
+          nu=1.05e-6
+          pSat_Pa=2300
+          q_Pa=664605.9620125
+          pInf_Pa=101990.894301875
+          EOF
+          cat NFSS70_CASE.txt
+          grep 'internalField' 0/U 0/p_rgh
+          grep -E '^(nu|rho)' constant/physicalProperties.water
+          grep 'endTime' system/controlDict
+
+          echo '--- starting OpenFOAM Allrun ---'
+          bash ./Allrun
+          echo '--- completed OpenFOAM Allrun ---'
+          foamListTimes -latestTime
+          echo '--- foamRun tail ---'
+          tail -n 120 log.foamRun
