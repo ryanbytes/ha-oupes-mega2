@@ -1,0 +1,61 @@
+name: NFSS-70 Container Cavitation Solve
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/nfss70-container-cavitation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cavitation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container:
+      image: microfluidica/openfoam:14
+    steps:
+      - name: Run 70-knot sigma-0.15 validation solve
+        shell: bash
+        run: |
+          set -eo pipefail
+          . /opt/openfoam14/etc/bashrc
+          SIGMA=0.15
+          V=36.011
+          CASE="$GITHUB_WORKSPACE/case"
+          cp -a "$FOAM_TUTORIALS/incompressibleVoF/cavitatingBullet" "$CASE"
+          cd "$CASE"
+          cp 0/U.orig 0/U
+          cp 0/p_rgh.orig 0/p_rgh
+
+          python3 - <<'PY'
+          import pathlib,re
+          sigma=0.15
+          V=36.011
+          rho=1025.0
+          nu=1.05e-6
+          p_sat=2300.0
+          q=0.5*rho*V*V
+          p_inf=p_sat+sigma*q
+          def sub(path, pat, repl):
+              p=pathlib.Path(path); s=p.read_text(); s2,n=re.subn(pat,repl,s,flags=re.M)
+              if n==0: raise RuntimeError(f'pattern missing: {path} {pat}')
+              p.write_text(s2)
+          sub('0/U', r'internalField\s+uniform\s+\(0\s+0\s+20\);', f'internalField   uniform (0 0 {V:.6f});')
+          sub('0/p_rgh', r'internalField\s+uniform\s+100000;', f'internalField   uniform {p_inf:.6f};')
+          sub('constant/physicalProperties.water', r'nu\s+9e-07;', f'nu              {nu:.9g};')
+          sub('constant/physicalProperties.water', r'rho\s+1000;', f'rho             {rho:.9g};')
+          sub('system/controlDict', r'endTime\s+0\.05;', 'endTime                 0.001;')
+          pathlib.Path('NFSS70_CASE.txt').write_text(
+              f'sigma={sigma}\nV_mps={V}\nrho={rho}\nnu={nu}\npSat_Pa={p_sat}\nq_Pa={q}\npInf_Pa={p_inf}\n')
+          print(pathlib.Path('NFSS70_CASE.txt').read_text())
+          PY
+
+          echo '--- starting OpenFOAM Allrun ---'
+          bash ./Allrun
+          echo '--- completed OpenFOAM Allrun ---'
+          foamListTimes -latestTime
+          echo '--- foamRun tail ---'
+          tail -n 120 log.foamRun
