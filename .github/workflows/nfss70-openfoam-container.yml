@@ -1,0 +1,27 @@
+name: NFSS-70 OpenFOAM Container Smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/nfss70-openfoam-container.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container:
+      image: microfluidica/openfoam:14
+    steps:
+      - name: Verify OpenFOAM 14 and cavitation tutorial
+        shell: bash
+        run: |
+          set -e
+          echo "OpenFOAM=$WM_PROJECT_VERSION"
+          foamRun -help >/dev/null
+          test -d "$FOAM_TUTORIALS/incompressibleVoF/cavitatingBullet"
+          echo "tutorial=$FOAM_TUTORIALS/incompressibleVoF/cavitatingBullet"
