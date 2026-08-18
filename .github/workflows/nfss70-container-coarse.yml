@@ -1,0 +1,49 @@
+name: NFSS-70 Coarse CFD Execution Proof
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/nfss70-container-coarse.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coarse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: microfluidica/openfoam:14
+    steps:
+      - name: Run coarse 70-knot cavitation case
+        shell: bash
+        run: |
+          set -eo pipefail
+          . /opt/openfoam14/etc/bashrc
+          CASE="$GITHUB_WORKSPACE/case"
+          cp -a "$FOAM_TUTORIALS/incompressibleVoF/cavitatingBullet" "$CASE"
+          cd "$CASE"
+          cp 0/U.orig 0/U
+          cp 0/p_rgh.orig 0/p_rgh
+
+          sed -Ei 's/internalField[[:space:]]+uniform[[:space:]]+\(0[[:space:]]+0[[:space:]]+20\);/internalField   uniform (0 0 36.011000);/' 0/U
+          sed -Ei 's/internalField[[:space:]]+uniform[[:space:]]+100000;/internalField   uniform 101990.894302;/' 0/p_rgh
+          sed -Ei 's/^[[:space:]]*nu[[:space:]]+9e-07;/nu              1.05e-06;/' constant/physicalProperties.water
+          sed -Ei 's/^[[:space:]]*rho[[:space:]]+1000;/rho             1025;/' constant/physicalProperties.water
+          sed -Ei 's/^[[:space:]]*endTime[[:space:]]+0\.05;/endTime                 0.0001;/' system/controlDict
+
+          # Coarse execution-proof mesh only; do not use for engineering outputs.
+          sed -Ei 's/maxGlobalCells[[:space:]]+2000000;/maxGlobalCells 250000;/' system/snappyHexMeshDict
+          sed -Ei 's/level \(4 4\);/level (2 2);/' system/snappyHexMeshDict
+          sed -Ei 's/level 3;/level 1;/g' system/snappyHexMeshDict
+
+          echo 'CASE: 70 kn, sigma=0.15, intentionally coarse mesh'
+          bash ./Allrun
+          echo 'SOLVE_COMPLETE'
+          echo -n 'latest_time='
+          foamListTimes -latestTime
+          echo '--- blockMesh tail ---'; tail -n 20 log.blockMesh || true
+          echo '--- snappyHexMesh tail ---'; tail -n 30 log.snappyHexMesh || true
+          echo '--- foamRun tail ---'; tail -n 80 log.foamRun || true
