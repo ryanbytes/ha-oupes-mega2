@@ -1,17 +1,86 @@
 """OUPES Mega 2 integration."""
 from __future__ import annotations
 
+import logging
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN, CONF_DEVICE_ID, CONF_DEVICE_KEY
 from .coordinator import OupesMega2Coordinator
 
+_LOGGER = logging.getLogger(__name__)
+
 PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR]
+
+_SENSOR_KEYS = (
+    "battery_pct",
+    "solar_power_w",
+    "ac_input_power_w",
+    "total_input_power_w",
+    "ac_output_power_w",
+    "temperature_c",
+    "time_remaining_min",
+    "charge_mode",
+    "energy_solar_kwh",
+    "energy_ac_in_kwh",
+    "energy_ac_out_kwh",
+)
+_BINARY_SENSOR_KEYS = (
+    "ac_charging",
+    "ac_output_on",
+    "dc_output_on",
+)
+
+
+async def _async_migrate_entity_unique_ids(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+) -> None:
+    """Migrate legacy single-device unique IDs to device-scoped IDs.
+
+    This preserves existing entity_ids for current users while allowing
+    additional OUPES devices to be added without unique_id collisions.
+    """
+    ent_reg = er.async_get(hass)
+    device_id = entry.data[CONF_DEVICE_ID]
+    legacy_to_new = {
+        **{
+            f"oupes_mega2_{key}": f"oupes_mega2_{device_id}_{key}"
+            for key in _SENSOR_KEYS
+        },
+        **{
+            f"oupes_mega2_{key}": f"oupes_mega2_{device_id}_{key}"
+            for key in _BINARY_SENSOR_KEYS
+        },
+    }
+
+    for entity_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        new_unique_id = legacy_to_new.get(entity_entry.unique_id)
+        if not new_unique_id or entity_entry.unique_id == new_unique_id:
+            continue
+        try:
+            ent_reg.async_update_entity(
+                entity_entry.entity_id,
+                new_unique_id=new_unique_id,
+            )
+            _LOGGER.info(
+                "Migrated OUPES entity unique_id for %s to %s",
+                entity_entry.entity_id,
+                new_unique_id,
+            )
+        except ValueError as err:
+            _LOGGER.warning(
+                "Unable to migrate OUPES unique_id for %s: %s",
+                entity_entry.entity_id,
+                err,
+            )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    await _async_migrate_entity_unique_ids(hass, entry)
     coordinator = OupesMega2Coordinator(
         hass,
         host=entry.data[CONF_HOST],
