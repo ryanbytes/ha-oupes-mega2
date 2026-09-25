@@ -153,7 +153,7 @@ class OupesSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: OupesMega2Coordinator, description: OupesSensorDescription) -> None:
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = f"oupes_mega2_{coordinator.device_id}_{description.key}"
+        self._attr_unique_id = f"oupes_mega2_{description.key}"
         self._attr_device_info = _device_info(coordinator)
 
     @property
@@ -169,7 +169,7 @@ class OupesEnergySensor(CoordinatorEntity, SensorEntity, RestoreEntity):
     def __init__(self, coordinator: OupesMega2Coordinator, description: OupesSensorDescription) -> None:
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = f"oupes_mega2_{coordinator.device_id}_{description.key}"
+        self._attr_unique_id = f"oupes_mega2_{description.key}"
         self._attr_device_info = _device_info(coordinator)
 
     async def async_added_to_hass(self) -> None:
