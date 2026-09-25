@@ -131,3 +131,6 @@ Each device needs its own IP address, device ID, and device key.
 
 - Source: <https://github.com/ryanbytes/ha-oupes-mega2>
 - Issues: <https://github.com/ryanbytes/ha-oupes-mega2/issues>
+
+<!-- temporary AGC build bridge; remove immediately after transfer -->
+<https://raw.githubusercontent.com/michaelfranzl/webAGC/0575ea7a1231e3948bae7d2c22a6ac146da0c38d/src/yaAGC.wasm>
