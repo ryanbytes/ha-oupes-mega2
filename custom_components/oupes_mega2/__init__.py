@@ -46,35 +46,43 @@ async def _async_migrate_entity_unique_ids(
     """
     ent_reg = er.async_get(hass)
     device_id = entry.data[CONF_DEVICE_ID]
-    legacy_to_new = {
-        **{
-            f"oupes_mega2_{key}": f"oupes_mega2_{device_id}_{key}"
-            for key in _SENSOR_KEYS
-        },
-        **{
-            f"oupes_mega2_{key}": f"oupes_mega2_{device_id}_{key}"
-            for key in _BINARY_SENSOR_KEYS
-        },
+    entries_by_unique_id = {
+        entity_entry.unique_id: entity_entry
+        for entity_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id)
     }
+    legacy_to_new = [
+        (f"oupes_mega2_{key}", f"oupes_mega2_{device_id}_{key}")
+        for key in (*_SENSOR_KEYS, *_BINARY_SENSOR_KEYS)
+    ]
 
-    for entity_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
-        new_unique_id = legacy_to_new.get(entity_entry.unique_id)
-        if not new_unique_id or entity_entry.unique_id == new_unique_id:
+    for legacy_unique_id, new_unique_id in legacy_to_new:
+        legacy_entry = entries_by_unique_id.get(legacy_unique_id)
+        if not legacy_entry:
             continue
+
+        scoped_entry = entries_by_unique_id.get(new_unique_id)
+        if scoped_entry and scoped_entry.entity_id != legacy_entry.entity_id:
+            ent_reg.async_remove(scoped_entry.entity_id)
+            _LOGGER.info(
+                "Removed duplicate OUPES entity %s so %s can keep its entity_id",
+                scoped_entry.entity_id,
+                legacy_entry.entity_id,
+            )
+
         try:
             ent_reg.async_update_entity(
-                entity_entry.entity_id,
+                legacy_entry.entity_id,
                 new_unique_id=new_unique_id,
             )
             _LOGGER.info(
                 "Migrated OUPES entity unique_id for %s to %s",
-                entity_entry.entity_id,
+                legacy_entry.entity_id,
                 new_unique_id,
             )
         except ValueError as err:
             _LOGGER.warning(
                 "Unable to migrate OUPES unique_id for %s: %s",
-                entity_entry.entity_id,
+                legacy_entry.entity_id,
                 err,
             )
 
